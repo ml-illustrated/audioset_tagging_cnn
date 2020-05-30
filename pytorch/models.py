@@ -1428,6 +1428,55 @@ class MobileNetV1(nn.Module):
 
         return output_dict
 
+class MobileNetV1Framewise(MobileNetV1):
+    def __init__(self, *args, **kwargs):
+        
+        super(MobileNetV1Framewise, self).__init__(*args, **kwargs)
+        self.interpolate_ratio = 32
+
+    def forward(self, x, mixup_lambda=None):
+        x = self.spectrogram_extractor(x)   # (batch_size, 1, time_steps, freq_bins)
+        x = self.logmel_extractor(x)    # (batch_size, 1, time_steps, mel_bins)
+
+        frames_num = x.shape[2]
+        
+        x = x.transpose(1, 3)
+        x = self.bn0(x)
+        x = x.transpose(1, 3)
+        
+        if self.training:
+            x = self.spec_augmenter(x)
+
+        # Mixup on spectrogram
+        if self.training and mixup_lambda is not None:
+            x = do_mixup(x, mixup_lambda)
+        
+        x = self.features(x)
+        x = torch.mean(x, dim=3)
+
+        x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
+        x = F.dropout(x, p=0.5, training=self.training)
+        x = x.transpose(1, 2)
+        x = F.relu_(self.fc1(x))
+        x = F.dropout(x, p=0.5, training=self.training)
+        segmentwise_output = torch.sigmoid(self.fc_audioset(x))
+        (clipwise_output, _) = torch.max(segmentwise_output, dim=1)
+
+        # Get framewise output
+        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)
+        framewise_output = pad_framewise_output(framewise_output, frames_num)
+
+        return framewise_output
+    '''
+        output_dict = {
+            'clipwise_output': clipwise_output,
+            'framewise_output': framewise_output,
+        }
+
+        return output_dict
+    '''
 
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):
@@ -2912,10 +2961,6 @@ class Cnn14_DecisionLevelAvg(nn.Module):
         x = F.dropout(x, p=0.5, training=self.training)
         segmentwise_output = torch.sigmoid(self.fc_audioset(x))
         clipwise_output = torch.mean(segmentwise_output, dim=1)
-
-        # Get framewise output
-        framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)
-        framewise_output = pad_framewise_output(framewise_output, frames_num)
 
         # Get framewise output
         framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)

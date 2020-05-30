@@ -37,6 +37,8 @@ def audio_tagging(args):
     model = Model(sample_rate=sample_rate, window_size=window_size, 
         hop_size=hop_size, mel_bins=mel_bins, fmin=fmin, fmax=fmax, 
         classes_num=classes_num)
+
+    print(model)
     
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint['model'])
@@ -105,6 +107,8 @@ def sound_event_detection(args):
     model = Model(sample_rate=sample_rate, window_size=window_size, 
         hop_size=hop_size, mel_bins=mel_bins, fmin=fmin, fmax=fmax, 
         classes_num=classes_num)
+
+    print( model )
     
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint['model'])
@@ -125,6 +129,9 @@ def sound_event_detection(args):
     # Forward
     model.eval()
     batch_output_dict = model(waveform, None)
+
+    torch.onnx.export(model.module, waveform, '/tmp/PANN_test.onnx', input_names=['input.1'], output_names=['333'])                                      
+
 
     framewise_output = batch_output_dict['framewise_output'].data.cpu().numpy()[0]
     """(time_steps, classes_num)"""
@@ -200,3 +207,7 @@ if __name__ == '__main__':
 
     else:
         raise Exception('Error argument!')
+
+'''
+python3 pytorch/inference.py sound_event_detection --model_type=MobileNetV1Framewise --checkpoint_path=MobileNetV1_mAP=0.389.pth --audio_path=R9_ZSCveAHg_7s.wav
+'''
