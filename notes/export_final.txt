@@ -1,0 +1,24 @@
+
+
+Pytorch different from Core ML output
+
+- modify model to output features and compare in Xcode
+    - => features are the same
+- modify model to output x1+x2
+    - => output size different, [1,1,1,1025,2] instead of [1,1,1024,3]
+- likely the problem being F.pad() ?
+    - => pad of coreML becomes [1, 1, 1, 1025, 4], not expected [1, 1, 1024, 5]
+    - try fixing padding via 
+x = x.unsqueeze(-1)
+        p1d = (0, 0, 1, 1) # pad dim 2 by 1 on each side, dim 3 none                                                                                            
+        x = F.pad(x, p1d, "constant", 0)  # effectively zero padding                                                                                            
+        x = x.squeeze(3)
+
+=> got new error: "compiler error:  Espresso exception: "Invalid state": Cannot squeeze a dimension whose value is not 1: shape[3]=2"
+
+- test if torch.mean() doesn't reduce dimension in Core ML?
+    - => this output shape is the same
+
+- ONNX prepends padding for AvgPool for some reason, which CoreML fails to convert correctly. fixed only via custom convert functions
+
+

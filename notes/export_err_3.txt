@@ -1,0 +1,17 @@
+# model with just features( torch.zeros([1, 1, 701, 64]) ) # cannot override x in input function..
+# Fixed by passing in input, now features(x) works in both MobileNetV1Base and MobileNetV1FramewiseExport
+out:  torch.Size([1, 1024, 21, 2])
+Traceback (most recent call last):
+  File "pytorch/export.py", line 137, in <module>
+    convert_to_coreml( fn_mlmodel, filename_onnx, sample_input=None )
+  File "pytorch/export.py", line 125, in convert_to_coreml
+    **convert_params, 
+  File "/Users/gerald/.virtualenv/coreml/lib/python3.7/site-packages/onnx_coreml/converter.py", line 553, in convert
+    builder = NeuralNetworkBuilder(input_features, output_features, mode=mode, disable_rank5_shape_mapping=disable_coreml_rank5_mapping)
+  File "/Users/gerald/.virtualenv/coreml/lib/python3.7/site-packages/coremltools/models/neural_network/builder.py", line 329, in __init__
+    array_datatype=array_datatype)
+  File "/Users/gerald/.virtualenv/coreml/lib/python3.7/site-packages/coremltools/models/_interface_management.py", line 150, in set_transform_interface_params
+    input_features = _fm.process_or_validate_features(input_features)
+  File "/Users/gerald/.virtualenv/coreml/lib/python3.7/site-packages/coremltools/models/_feature_management.py", line 295, in process_or_validate_features
+    num_dimensions = 1 + max(chain(*[il for k, il in features.items()]))
+ValueError: max() arg is an empty sequence
