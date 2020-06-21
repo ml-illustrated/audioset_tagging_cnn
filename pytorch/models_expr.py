@@ -1354,7 +1354,7 @@ class MobileNetV1(nn.Module):
 
         def conv_dw(inp, oup, stride):
             _layers = [
-                nn.Conv2d(inp, inp, 3, 1, 1, groups=inp, bias=False), 
+                nn.Conv2d(inp, inp, 3, 1, 1, groups=inp, bias=False),
                 nn.AvgPool2d(stride), 
                 nn.BatchNorm2d(inp), 
                 nn.ReLU(inplace=True), 
@@ -1433,11 +1433,15 @@ class MobileNetV1Framewise(MobileNetV1):
         
         super(MobileNetV1Framewise, self).__init__(*args, **kwargs)
         self.interpolate_ratio = 32
+        
+        self.conv = nn.Conv2d(128, 32, 3, 1, 1, bias=False)
+
 
     def forward(self, x, mixup_lambda=None):
         x = self.spectrogram_extractor(x)   # (batch_size, 1, time_steps, freq_bins)
         x = self.logmel_extractor(x)    # (batch_size, 1, time_steps, mel_bins)
-
+        return x
+    """
         frames_num = x.shape[2]
         
         x = x.transpose(1, 3)
@@ -1451,7 +1455,41 @@ class MobileNetV1Framewise(MobileNetV1):
         if self.training and mixup_lambda is not None:
             x = do_mixup(x, mixup_lambda)
         
-        x = self.features(x)
+        # x = self.features(x)
+
+        '''            
+            conv_bn(  1,  32, 2), 
+            conv_dw( 32,  64, 1),
+            conv_dw( 64, 128, 2),
+            conv_dw(128, 128, 1),
+
+        '''
+
+        '''
+        for i in range( 3 ): # len( self.features ):
+            x = self.features[i](x)
+
+
+
+        print( 'l10: ', self.features[1][0] )
+        x = self.features[0](x)
+        x = self.features[1](x)
+        x = self.features[2](x) # -> (1, 128, 25, 16)
+        # print ('l3 out: ', x.shape, self.features[3][0] )
+        # x = self.features[3][0](x)
+        print( 'conv: ', self.conv )
+        x = self.conv(x)
+
+
+
+        # x = self.features[4][0](x)
+        # x = self.features[4][0](x)
+        # x = self.features[2][1](x)
+        # x = self.features[4][0](x)
+        # print ('l40 out: ', x.shape )
+        return x
+
+        '''
         x = torch.mean(x, dim=3)
 
         x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
@@ -1469,14 +1507,8 @@ class MobileNetV1Framewise(MobileNetV1):
         # TEMP DISABLE framewise_output = pad_framewise_output(framewise_output, frames_num)
 
         return framewise_output
-    '''
-        output_dict = {
-            'clipwise_output': clipwise_output,
-            'framewise_output': framewise_output,
-        }
-
-        return output_dict
-    '''
+    """
+    
 
 class InvertedResidual(nn.Module):
     def __init__(self, inp, oup, stride, expand_ratio):

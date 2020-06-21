@@ -104,11 +104,22 @@ def sound_event_detection(args):
 
     # Model
     Model = eval(model_type)
+
+    args = dict(sample_rate=sample_rate, window_size=window_size, 
+                hop_size=hop_size, mel_bins=mel_bins, fmin=fmin, fmax=fmax, 
+                classes_num=classes_num,
+                checkpoint_path = args.checkpoint_path,
+                audio_path = args.audio_path,
+                frames_per_second=frames_per_second,
+    )
+    print('model_type:', model_type )
+    print('model args:', args )
+    
     model = Model(sample_rate=sample_rate, window_size=window_size, 
         hop_size=hop_size, mel_bins=mel_bins, fmin=fmin, fmax=fmax, 
         classes_num=classes_num)
 
-    print( model )
+    # print( model )
     
     checkpoint = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint['model'])
@@ -126,11 +137,13 @@ def sound_event_detection(args):
     waveform = waveform[None, :]    # (1, audio_length)
     waveform = move_data_to_device(waveform, device)
 
+    print( 'waveform: ', waveform.shape )
+
     # Forward
     model.eval()
     batch_output_dict = model(waveform, None)
 
-    torch.onnx.export(model.module, waveform, '/tmp/PANN_test.onnx', input_names=['input.1'], output_names=['333'])                                      
+    # torch.onnx.export(model.module, waveform, '/tmp/PANN_test.onnx', input_names=['input.1'], output_names=['333'])
 
 
     framewise_output = batch_output_dict['framewise_output'].data.cpu().numpy()[0]
@@ -209,5 +222,6 @@ if __name__ == '__main__':
         raise Exception('Error argument!')
 
 '''
+# env: coreml
 python3 pytorch/inference.py sound_event_detection --model_type=MobileNetV1Framewise --checkpoint_path=MobileNetV1_mAP=0.389.pth --audio_path=R9_ZSCveAHg_7s.wav
 '''

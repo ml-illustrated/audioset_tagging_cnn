@@ -111,10 +111,10 @@ class MobileNetV1FramewiseExport(MobileNetV1Framewise):
         # print( 'x mean: ', x.shape ) # x mean:  torch.Size([1, 1024, 3])
 
         
-        
         # original
         x1 = F.max_pool1d(x, kernel_size=3, stride=1, padding=1)
         x2 = F.avg_pool1d(x, kernel_size=3, stride=1, padding=1)
+        x = x1 + x2
 
 
         '''
@@ -137,10 +137,10 @@ class MobileNetV1FramewiseExport(MobileNetV1Framewise):
         x1 = F.max_pool1d(x, kernel_size=3, stride=1)
         x2 = F.avg_pool1d(x, kernel_size=3, stride=1)
         # print( 'x1 x2: ', x1.shape, x2.shape ) # torch.Size([1, 1024, 3]) torch.Size([1, 1024, 3])
-        '''
 
         x = x1 + x2
         features = x        
+        '''
         
         x = F.dropout(x, p=0.5, training=self.training)
         x = x.transpose(1, 2)
@@ -153,7 +153,7 @@ class MobileNetV1FramewiseExport(MobileNetV1Framewise):
         framewise_output = interpolate(segmentwise_output, self.interpolate_ratio)
         # TEMP DISABLE framewise_output = pad_framewise_output(framewise_output, frames_num)
 
-        return clipwise_output, features, melspec
+        return clipwise_output, framewise_output, melspec
 
     def gen_torch_output( self, sample_input ):
         # Forward
@@ -280,8 +280,23 @@ def _convert_pad(builder, node, graph, err):
         )
 
 
+def save_class_label_json( fn_json ):
+    import csv, json
+    
+    with open('metadata/class_labels_indices.csv', 'r') as f:
+        reader = csv.reader(f, delimiter=',')
+        lines = list(reader)
+
+        labels = []
+        for i1 in range(1, len(lines)):
+            id = lines[i1][1]
+            label = lines[i1][2]
+            labels.append(label)
+
+    with open( fn_json, 'w' ) as ofp:
+        json.dump( labels, ofp )
         
-def export_model( fn_mlmodel, fn_json, checkpoint_path ):
+def export_model( fn_mlmodel, fn_json, fn_label_json, checkpoint_path ):
     # audio_path = 'R9_ZSCveAHg_7s.wav'
     audio_path = '/tmp/ring_hello.wav'
 
@@ -319,6 +334,8 @@ def export_model( fn_mlmodel, fn_json, checkpoint_path ):
 
     save_model_output_as_json( fn_json, model_outputs )
 
+    save_class_label_json( fn_label_json )
+
 def save_model_output_as_json( fn_output, model_outputs ):
     import json
     output_data = [
@@ -329,7 +346,7 @@ def save_model_output_as_json( fn_output, model_outputs ):
     with open( fn_output, 'w' ) as fp:
         json.dump( output_data, fp )
 
-    
+'''    
 def export_model_debug( fn_mlmodel, fn_json, checkpoint_path ):
     import numpy as np
     sample_input = np.zeros((1, 1024, 3, 2), dtype=np.float32)
@@ -340,7 +357,7 @@ def export_model_debug( fn_mlmodel, fn_json, checkpoint_path ):
     model = Model(**model_args)
 
     model_outputs = model.convert_to_coreml( fn_mlmodel, sample_input )
-    
+'''
     
 if __name__ == '__main__':
     # checkpoint_path = 'MobileNetV1_mAP=0.389.pth'
@@ -349,8 +366,9 @@ if __name__ == '__main__':
 
     fn_mlmodel = '/tmp/PANN.mlmodel'
     fn_json = '/tmp/PANN_out.ring_hello.json'
+    fn_label_json = '/tmp/PANN_labels.json'
 
-    export_model( fn_mlmodel, fn_json, checkpoint_path )
+    export_model( fn_mlmodel, fn_json, fn_label_json, checkpoint_path )
     # export_model_debug( fn_mlmodel, fn_json, checkpoint_path )
 
 # python3 pytorch/export.py 'MobileNetV1_mAP=0.389.pth'
@@ -390,8 +408,9 @@ import soundfile as sf
 fn_wav = 'R9_ZSCveAHg_7s.wav'
 
 waveform, samplerate = sf.read( fn_wav )
-num_samples = 32000
-sample_input = waveform[ num_samples*2:num_samples*3 ] # sec 2 to 3
+# samplerate is 32000
+num_samples = 12800
+sample_input = waveform[ samplerate*2:samplerate*2+num_samples ] # sec 2 to 3
 
 sf.write( '/tmp/ring_hello.wav', sample_input, samplerate )
 '''
